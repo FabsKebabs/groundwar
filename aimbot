@@ -177,7 +177,7 @@ local RageTab = MainUI:MakeTab({
 })
 
 RageTab:AddToggle({
-    Name = "Enable RageBot (Hold Right Mouse Button)",
+    Name = "Enable RageBot",
     Default = false,
     Callback = function(value)
         RageBotEnabled = value
