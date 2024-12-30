@@ -1,0 +1,188 @@
+-- Universal Aimbot, Soft Aim, Hard Aim, and Improved RageBot Script
+local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/FabsKebabs/load/refs/heads/main/Source'))()
+
+if not OrionLib then
+    warn("OrionLib failed to load!")
+    return
+end
+
+-- 🌟 Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local Camera = Workspace.CurrentCamera
+
+-- 🎯 Variables
+local LocalPlayer = Players.LocalPlayer
+local AimPart = "Head"
+local AimbotEnabled = false
+local SoftAimEnabled = false
+local HardAimEnabled = false
+local RageBotEnabled = false
+local AimSmoothness = 0.1 -- Smooth aim factor (0 = instant, 1 = slow)
+local RageBotDistance = 50 -- Fixed distance for RageBot
+
+-- 🧠 Utility Functions
+local function isEnemy(player)
+    return player.Team ~= LocalPlayer.Team and player.Team ~= nil
+end
+
+local function getClosestEnemy()
+    local closestPlayer = nil
+    local shortestDistance = math.huge
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and isEnemy(player) and player.Character and player.Character:FindFirstChild(AimPart) then
+            local targetPart = player.Character[AimPart]
+            local screenPosition, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+            local mousePosition = UserInputService:GetMouseLocation()
+            local distance = (Vector2.new(screenPosition.X, screenPosition.Y) - mousePosition).Magnitude
+
+            if onScreen and distance < shortestDistance then
+                closestPlayer = player
+                shortestDistance = distance
+            end
+        end
+    end
+
+    return closestPlayer
+end
+
+local function aimAt(target, smoothness)
+    if target and target.Character and target.Character:FindFirstChild(AimPart) then
+        local targetPosition = target.Character[AimPart].Position
+        Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPosition), smoothness)
+    end
+end
+
+local function teleportEnemiesInFront()
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local rootPart = LocalPlayer.Character.HumanoidRootPart
+    local forwardPosition = rootPart.CFrame * CFrame.new(0, 0, -RageBotDistance)
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and isEnemy(player) and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            -- Check if they're not in a vehicle
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid and humanoid.SeatPart == nil then
+                local enemyRoot = player.Character.HumanoidRootPart
+                enemyRoot.CFrame = CFrame.new(forwardPosition.Position + Vector3.new(math.random(-5, 5), 0, math.random(-5, 5)))
+            end
+        end
+    end
+end
+
+-- 🖱️ Input Handling
+UserInputService.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
+        while UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) do
+            if RageBotEnabled then
+                teleportEnemiesInFront()
+            elseif HardAimEnabled then
+                local target = getClosestEnemy()
+                if target then
+                    aimAt(target, 0) -- No smoothing for hard aim
+                end
+            elseif AimbotEnabled then
+                local target = getClosestEnemy()
+                if target then
+                    aimAt(target, AimSmoothness)
+                end
+            elseif SoftAimEnabled then
+                local target = getClosestEnemy()
+                if target then
+                    aimAt(target, 0.5) -- Slight smoothing for soft aim
+                end
+            end
+            RunService.RenderStepped:Wait()
+        end
+    end
+end)
+
+-- 🟢 GUI Setup with OrionLib
+local MainUI = OrionLib:MakeWindow({Name = "Publoader-Ground War", HidePremium = true})
+
+-- 🎯 Aimbot Tab
+local AimTab = MainUI:MakeTab({
+    Name = "Aimbot",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+AimTab:AddToggle({
+    Name = "Enable Aimbot",
+    Default = false,
+    Callback = function(value)
+        AimbotEnabled = value
+    end
+})
+
+AimTab:AddDropdown({
+    Name = "Aim Target",
+    Default = "Head",
+    Options = {"Head", "HumanoidRootPart"},
+    Callback = function(value)
+        AimPart = value
+    end
+})
+
+AimTab:AddSlider({
+    Name = "Aim Smoothness",
+    Min = 0,
+    Max = 1,
+    Default = 0.1,
+    Increment = 0.1,
+    Callback = function(value)
+        AimSmoothness = value
+    end
+})
+
+-- 🤖 Hard Aim Tab
+local HardAimTab = MainUI:MakeTab({
+    Name = "Hard Aim",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+HardAimTab:AddToggle({
+    Name = "Enable Hard Aim",
+    Default = false,
+    Callback = function(value)
+        HardAimEnabled = value
+    end
+})
+
+-- 🥷 Soft Aim Tab
+local SoftAimTab = MainUI:MakeTab({
+    Name = "Soft Aim",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+SoftAimTab:AddToggle({
+    Name = "Enable Soft Aim",
+    Default = false,
+    Callback = function(value)
+        SoftAimEnabled = value
+    end
+})
+
+-- 💥 RageBot Tab
+local RageTab = MainUI:MakeTab({
+    Name = "RageBot",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+RageTab:AddToggle({
+    Name = "Enable RageBot (Hold Right Mouse Button)",
+    Default = false,
+    Callback = function(value)
+        RageBotEnabled = value
+    end
+})
+
+-- 🟢 Initialize UI
+OrionLib:Init()
