@@ -1,0 +1,3 @@
+if game.PlaceId == 118367369949006 then
+    loadstring(game:HttpGet('https://raw.githubusercontent.com/FabsKebabs/mvss/refs/heads/main/mvss'))()
+end
