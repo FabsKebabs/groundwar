@@ -1,4 +1,4 @@
--- Universal Aimbot, Soft Aim, Hard Aim, and Improved RageBot Script
+-- Universal Aimbot, Soft Aim, Hard Aim, Improved RageBot Script, and ESP
 local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/FabsKebabs/load/refs/heads/main/Source'))()
 
 if not OrionLib then
@@ -9,7 +9,6 @@ end
 -- 🌟 Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local Camera = Workspace.CurrentCamera
 
@@ -20,8 +19,10 @@ local AimbotEnabled = false
 local SoftAimEnabled = false
 local HardAimEnabled = false
 local RageBotEnabled = false
-local AimSmoothness = 0.1 -- Smooth aim factor (0 = instant, 1 = slow)
-local RageBotDistance = 50 -- Fixed distance for RageBot
+local ESPEnabled = false
+local AimSmoothness = 0.1
+local RageBotDistance = 50
+local ESPBoxes = {}
 
 -- 🧠 Utility Functions
 local function isEnemy(player)
@@ -36,7 +37,7 @@ local function getClosestEnemy()
         if player ~= LocalPlayer and isEnemy(player) and player.Character and player.Character:FindFirstChild(AimPart) then
             local targetPart = player.Character[AimPart]
             local screenPosition, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-            local mousePosition = UserInputService:GetMouseLocation()
+            local mousePosition = game:GetService("UserInputService"):GetMouseLocation()
             local distance = (Vector2.new(screenPosition.X, screenPosition.Y) - mousePosition).Magnitude
 
             if onScreen and distance < shortestDistance then
@@ -64,7 +65,6 @@ local function teleportEnemiesInFront()
 
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and isEnemy(player) and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            -- Check if they're not in a vehicle
             local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
             if humanoid and humanoid.SeatPart == nil then
                 local enemyRoot = player.Character.HumanoidRootPart
@@ -74,16 +74,61 @@ local function teleportEnemiesInFront()
     end
 end
 
+-- 🌈 ESP Functions
+local function createESP(player)
+    if not player.Character then return end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESPHighlight"
+    highlight.FillTransparency = 1 -- Transparent fill
+    highlight.OutlineTransparency = 0
+    highlight.OutlineColor = Color3.fromRGB(255, 0, 0) -- Red outline for enemies
+    highlight.Parent = player.Character
+
+    ESPBoxes[player] = highlight
+end
+
+local function removeESP(player)
+    if ESPBoxes[player] then
+        ESPBoxes[player]:Destroy()
+        ESPBoxes[player] = nil
+    end
+end
+
+local function updateESP()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and isEnemy(player) then
+            if ESPEnabled then
+                if not ESPBoxes[player] then
+                    createESP(player)
+                end
+            else
+                removeESP(player)
+            end
+        end
+    end
+end
+
+Players.PlayerRemoving:Connect(function(player)
+    removeESP(player)
+end)
+
+RunService.RenderStepped:Connect(function()
+    if ESPEnabled then
+        updateESP()
+    end
+end)
+
 -- 🖱️ Input Handling
-UserInputService.InputBegan:Connect(function(input)
+game:GetService("UserInputService").InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton2 then
-        while UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) do
+        while game:GetService("UserInputService"):IsMouseButtonPressed(Enum.UserInputType.MouseButton2) do
             if RageBotEnabled then
                 teleportEnemiesInFront()
             elseif HardAimEnabled then
                 local target = getClosestEnemy()
                 if target then
-                    aimAt(target, 0) -- No smoothing for hard aim
+                    aimAt(target, 0)
                 end
             elseif AimbotEnabled then
                 local target = getClosestEnemy()
@@ -93,7 +138,7 @@ UserInputService.InputBegan:Connect(function(input)
             elseif SoftAimEnabled then
                 local target = getClosestEnemy()
                 if target then
-                    aimAt(target, 0.5) -- Slight smoothing for soft aim
+                    aimAt(target, 0.5)
                 end
             end
             RunService.RenderStepped:Wait()
@@ -105,84 +150,26 @@ end)
 local MainUI = OrionLib:MakeWindow({Name = "Publoader-Ground War", HidePremium = true})
 
 -- 🎯 Aimbot Tab
-local AimTab = MainUI:MakeTab({
-    Name = "Aimbot",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-AimTab:AddToggle({
-    Name = "Enable Aimbot",
-    Default = false,
-    Callback = function(value)
-        AimbotEnabled = value
-    end
-})
-
-AimTab:AddDropdown({
-    Name = "Aim Target",
-    Default = "Head",
-    Options = {"Head", "HumanoidRootPart"},
-    Callback = function(value)
-        AimPart = value
-    end
-})
-
-AimTab:AddSlider({
-    Name = "Aim Smoothness",
-    Min = 0,
-    Max = 1,
-    Default = 0.1,
-    Increment = 0.1,
-    Callback = function(value)
-        AimSmoothness = value
-    end
-})
+local AimTab = MainUI:MakeTab({Name = "Aimbot", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+AimTab:AddToggle({Name = "Enable Aimbot", Default = false, Callback = function(value) AimbotEnabled = value end})
+AimTab:AddDropdown({Name = "Aim Target", Default = "Head", Options = {"Head", "HumanoidRootPart"}, Callback = function(value) AimPart = value end})
+AimTab:AddSlider({Name = "Aim Smoothness", Min = 0, Max = 1, Default = 0.1, Increment = 0.1, Callback = function(value) AimSmoothness = value end})
 
 -- 🤖 Hard Aim Tab
-local HardAimTab = MainUI:MakeTab({
-    Name = "Hard Aim",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-HardAimTab:AddToggle({
-    Name = "Enable Hard Aim",
-    Default = false,
-    Callback = function(value)
-        HardAimEnabled = value
-    end
-})
+local HardAimTab = MainUI:MakeTab({Name = "Hard Aim", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+HardAimTab:AddToggle({Name = "Enable Hard Aim", Default = false, Callback = function(value) HardAimEnabled = value end})
 
 -- 🥷 Soft Aim Tab
-local SoftAimTab = MainUI:MakeTab({
-    Name = "Soft Aim",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-SoftAimTab:AddToggle({
-    Name = "Enable Soft Aim",
-    Default = false,
-    Callback = function(value)
-        SoftAimEnabled = value
-    end
-})
+local SoftAimTab = MainUI:MakeTab({Name = "Soft Aim", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+SoftAimTab:AddToggle({Name = "Enable Soft Aim", Default = false, Callback = function(value) SoftAimEnabled = value end})
 
 -- 💥 RageBot Tab
-local RageTab = MainUI:MakeTab({
-    Name = "RageBot",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
+local RageTab = MainUI:MakeTab({Name = "RageBot", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+RageTab:AddToggle({Name = "Enable RageBot", Default = false, Callback = function(value) RageBotEnabled = value end})
 
-RageTab:AddToggle({
-    Name = "Enable RageBot",
-    Default = false,
-    Callback = function(value)
-        RageBotEnabled = value
-    end
-})
+-- 🌈 ESP Tab
+local ESPTab = MainUI:MakeTab({Name = "ESP", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+ESPTab:AddToggle({Name = "Enable ESP", Default = false, Callback = function(value) ESPEnabled = value updateESP() end})
 
 -- 🟢 Initialize UI
 OrionLib:Init()
